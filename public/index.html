@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TitleLens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@600&display=swap">
+<style>
+/* Layout: registry workbench. Left = what the file proves (chain, checks, EC). Right = ask the file, with the retrieval trace visible. */
+:root{
+  --bg:#F3F5F4; --surface:#FFFFFF; --sunk:#EAEEEC; --line:#D6DDDA; --fg:#14201C; --muted:#5A6863; --faint:#8A9792;
+  --ink:#0E5E52; --ink-soft:#DCEEEA; --stamp:#B42318; --stamp-soft:#FCE9E7; --amber:#975A08; --amber-soft:#FBF0D9;
+  --f-display:"IBM Plex Serif",Georgia,serif; --f-body:"IBM Plex Sans",-apple-system,"Segoe UI",Helvetica,Arial,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1513; --surface:#161E1B; --sunk:#1C2622; --line:#2B3833; --fg:#E4ECE9; --muted:#9AAAA4; --faint:#6E7D78;
+  --ink:#5CC3B1; --ink-soft:#173A33; --stamp:#F27B6E; --stamp-soft:#3A1C19; --amber:#E6B45C; --amber-soft:#36290F; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0F1513; --surface:#161E1B; --sunk:#1C2622; --line:#2B3833; --fg:#E4ECE9; --muted:#9AAAA4; --faint:#6E7D78;
+  --ink:#5CC3B1; --ink-soft:#173A33; --stamp:#F27B6E; --stamp-soft:#3A1C19; --amber:#E6B45C; --amber-soft:#36290F; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.55 var(--f-body);padding-inline:16px;padding-block:0 32px}
+.wrap{max-width:1240px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding-block:16px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand h1{font:600 22px/1 var(--f-display);margin:0;letter-spacing:-.01em}
+.lens{width:18px;height:18px;border:3px solid var(--ink);border-radius:50%;position:relative}
+.lens::after{content:"";position:absolute;width:3px;height:8px;background:var(--ink);right:-5px;bottom:-7px;transform:rotate(-45deg);border-radius:2px}
+.matter{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.badge{font:600 10.5px var(--f-mono);letter-spacing:.04em;padding:3px 7px;border-radius:4px;background:var(--amber-soft);color:var(--amber)}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:start}
+.grid > section{min-width:0}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.panel + .panel{margin-top:16px}
+h2{font:600 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+.note{font-size:12px;color:var(--faint);margin:-6px 0 12px}
+/* chain */
+.chain{display:flex;flex-direction:column}
+.link{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.link.gap{border:1.5px dashed var(--stamp);background:var(--stamp-soft)}
+.yr{font:600 12.5px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.who{min-width:0}.who b{display:block;font-weight:600}
+.who span{display:block;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.tag{font:600 10.5px var(--f-mono);padding:3px 7px;border-radius:4px;white-space:nowrap}
+.tag.ok{background:var(--ink-soft);color:var(--ink)} .tag.bad{background:var(--stamp-soft);color:var(--stamp)} .tag.warn{background:var(--amber-soft);color:var(--amber)}
+.conn{height:12px;margin-left:37px;border-left:2px solid var(--line)} .conn.gap{border-left:2px dashed var(--stamp)}
+/* checks */
+.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.chk{border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.chk .h{display:flex;justify-content:space-between;gap:8px;align-items:center;color:var(--fg);font-weight:600;font-size:13px}
+/* EC table */
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:520px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 11px var(--f-mono);color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+td.mono{font-family:var(--f-mono);font-size:11.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* documents */
+details.doc{border:1px solid var(--line);border-radius:8px;margin-bottom:8px}
+details.doc summary{cursor:pointer;padding:9px 12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:500}
+details.doc summary span{font:12px var(--f-mono);color:var(--muted)}
+.page{padding:8px 12px 10px;border-top:1px dashed var(--line);font-size:13px}
+.page .pl{font:600 11px var(--f-mono);color:var(--ink);margin-bottom:2px}
+/* ask */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--sunk);color:var(--fg);border-radius:16px;padding:5px 11px;cursor:pointer}
+.chip:hover{border-color:var(--ink)}
+form.ask{display:flex;gap:8px}
+form.ask input{flex:1;min-width:0;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg)}
+button.go{font:600 13px var(--f-body);padding:10px 16px;border-radius:8px;border:0;background:var(--ink);color:var(--surface);cursor:pointer}
+button.go:disabled{opacity:.5;cursor:default}
+button.stop{font:inherit;font-size:12px;border:1px solid var(--line);background:none;color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.thread{display:flex;flex-direction:column;gap:14px;margin-top:14px}
+.q{align-self:flex-end;background:var(--fg);color:var(--bg);padding:8px 12px;border-radius:12px 12px 2px 12px;max-width:90%}
+.ans{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface)}
+.ans .body{white-space:normal}
+.ans .body p{margin:0 0 8px}.ans .body ul{margin:4px 0 8px 18px;padding:0}.ans .body li{margin:2px 0}
+.cite{font:600 10px var(--f-mono);color:var(--ink);background:var(--ink-soft);border-radius:4px;padding:1px 4px;margin-left:2px;vertical-align:1px;cursor:help}
+.status{font-size:12px;color:var(--faint);margin-top:6px}
+.val{margin-top:10px;font-size:12px;padding:7px 10px;border-radius:6px}
+.val.pass{background:var(--ink-soft);color:var(--ink)} .val.fail{background:var(--stamp-soft);color:var(--stamp)}
+details.trace{margin-top:10px;font-size:12px}
+details.trace summary{cursor:pointer;color:var(--muted);font-weight:500}
+.trace .src{border-left:2px solid var(--line);padding:4px 0 4px 10px;margin:6px 0}
+.trace .src b{font-family:var(--f-mono);font-size:11px;color:var(--ink)}
+.trace .score{font:11px var(--f-mono);color:var(--faint)}
+.trace pre{white-space:pre-wrap;font:11.5px var(--f-mono);background:var(--sunk);padding:8px;border-radius:6px;margin:6px 0;overflow-x:auto}
+.offline{font-size:12.5px;background:var(--amber-soft);color:var(--amber);border-radius:8px;padding:9px 12px;margin-top:10px}
+footer{margin-top:20px;font-size:12px;color:var(--faint);text-align:center}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>body{margin:0}</style>
+<script>window.TITLELENS_BACKEND="gemini";</script>
+</head>
+<body>
+
+
+<div class="wrap">
+<header>
+  <div class="brand"><span class="lens" aria-hidden="true"></span><h1>TitleLens</h1></div>
+  <div class="matter"><span id="matterName"></span><span class="badge">SAMPLE FILE, FICTIONAL PROPERTY</span></div>
+</header>
+
+<div class="grid">
+  <section>
+    <div class="panel">
+      <h2>Title chain</h2>
+      <p class="note">Built by code from extracted fields and EC rows. The AI never creates a link.</p>
+      <div class="chain" id="chain"></div>
+    </div>
+    <div class="panel">
+      <h2>Checks</h2>
+      <div class="checks" id="checks"></div>
+    </div>
+    <div class="panel">
+      <h2>Encumbrance certificate</h2>
+      <p class="note" id="ecPeriod"></p>
+      <div class="tbl"><table><thead><tr><th>ID</th><th>Date</th><th>Nature</th><th>Doc No.</th><th>From → To</th><th>In file?</th></tr></thead><tbody id="ecRows"></tbody></table></div>
+    </div>
+    <div class="panel">
+      <h2>Documents in this file</h2>
+      <div id="docs"></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="askTitle">
+    <h2 id="askTitle">Ask this file</h2>
+    <p class="note" id="engineNote">Answers come only from this file, cited to the page.</p>
+    <div class="chips" id="chips"></div>
+    <form class="ask" id="askForm">
+      <input id="askInput" type="text" autocomplete="off" placeholder="e.g. Who sold the property to Anitha Rao?" aria-label="Question about this file">
+      <button class="go" id="askBtn" type="submit">Ask</button>
+    </form>
+    <div class="thread" id="thread"></div>
+  </section>
+</div>
+<footer>TitleLens prototype. Sample data only. Not legal advice; the advocate gives the opinion.</footer>
+</div>
+
+<script>
+// Which model answers. "claude" = claude.ai artifact (sample capability). "gemini" = AI Studio / Node server at /api/ask.
+const BACKEND = window.TITLELENS_BACKEND || "claude";
+
+// ---------------------------------------------------------------- sample matter (fictional)
+const MATTER = {
+  name: "Flat 304, Sample Residency · Sy. No. 45/2, Sample Village, Bengaluru Urban · 13-year search",
+  ecFrom: "2013-04-01", ecTo: "2026-09-30", ecFetched: "2026-10-03",
+};
+const DOCS = [
+  { id:"D1", type:"Sale deed", docNo:"SMP-1-02841-2011", date:"2011-03-14", from:"B. Ramaiah", to:"S. Lakshmamma", lang:"Kannada, translated", kind:"transfer",
+    pages:[
+      { p:1, sec:"Parties", text:"This sale deed is executed on 14 March 2011 by B. Ramaiah, son of Late Basappa (the Vendor), in favour of S. Lakshmamma, wife of K. Srinivas (the Purchaser)." },
+      { p:3, sec:"Recitals", text:"The Vendor is the absolute owner of the schedule property, having inherited it from his father Late Basappa, as recorded in mutation entry MR 112/1998-99." },
+      { p:5, sec:"Schedule of property", text:"All that piece of land in Sy. No. 45/2, Sample Village, Bengaluru Urban, measuring 2 guntas (2,178 sq ft), bounded on the East by Sy. No. 45/1, West by road, North by Sy. No. 46, South by private property." },
+      { p:6, sec:"Consideration", text:"The Purchaser has paid the full sale consideration of Rs. 9,50,000 to the Vendor, receipt of which the Vendor acknowledges." },
+    ]},
+  { id:"D2", type:"Gift deed", docNo:"SMP-1-05530-2014", date:"2014-06-02", from:"S. Lakshmamma", to:"K. Ravi Kumar", lang:"English", kind:"transfer",
+    pages:[
+      { p:1, sec:"Parties", text:"This gift deed is executed on 2 June 2014 by S. Lakshmamma (the Donor) in favour of her son K. Ravi Kumar (the Donee), out of natural love and affection." },
+      { p:2, sec:"Recitals", text:"The Donor acquired the schedule property under sale deed dated 14 March 2011, registered as Doc No. SMP-1-02841-2011." },
+      { p:3, sec:"Schedule of property", text:"Land in Sy. No. 45/2, Sample Village, Bengaluru Urban, measuring 2 guntas (2,178 sq ft), with the same boundaries as in the 2011 sale deed." },
+    ]},
+  { id:"D3", type:"Sale deed", docNo:"SMP-1-07714-2019", date:"2019-11-05", from:"Anitha Rao", to:"Sample Builders LLP", lang:"English", kind:"transfer",
+    pages:[
+      { p:1, sec:"Parties", text:"This sale deed is executed on 5 November 2019 by Anitha Rao (the Vendor) in favour of Sample Builders LLP, represented by its designated partner (the Purchaser)." },
+      { p:2, sec:"Recitals", text:"The Vendor purchased the schedule property from K. Ravi Kumar under sale deed dated 21 August 2017, registered as Doc No. SMP-1-03312-2017." },
+      { p:4, sec:"Schedule of property", text:"Land in Sy. No. 45/2, Sample Village, Bengaluru Urban, measuring 2 guntas (2,178 sq ft), bounded on the East by Sy. No. 45/1, West by road, North by Sy. No. 46, South by private property." },
+      { p:5, sec:"Consideration", text:"The Purchaser has paid the full sale consideration of Rs. 1,42,00,000 by bank transfer." },
+    ]},
+  { id:"D4", type:"Release deed", docNo:"SMP-1-02295-2023", date:"2023-07-18", from:"Sample Bank Ltd", to:"Sample Builders LLP", lang:"English", kind:"release",
+    pages:[
+      { p:1, sec:"Release", text:"Sample Bank Ltd releases all its rights under the mortgage created by Sample Builders LLP by deed dated 10 February 2020, registered as Doc No. SMP-1-04410-2020, the loan having been repaid in full." },
+    ]},
+  { id:"D5", type:"Occupancy certificate extract", docNo:"OC/BBMP/2024/0187", date:"2024-09-12", lang:"English", kind:"approval",
+    pages:[
+      { p:1, sec:"Unit details", text:"Occupancy certificate for Sample Residency on Sy. No. 45/2. Flat 304, third floor: built-up area 1,180 sq ft." },
+    ]},
+  { id:"D6", type:"Agreement to sell", docNo:"Unregistered", date:"2026-08-12", from:"Sample Builders LLP", to:"Purchaser (proposed)", lang:"English", kind:"agreement",
+    pages:[
+      { p:1, sec:"Parties", text:"This agreement to sell is made on 12 August 2026 between Sample Builders LLP (the Vendor) and the Purchaser." },
+      { p:2, sec:"Schedule of flat", text:"Flat 304 on the third floor of Sample Residency, built on land in Sy. No. 45/2, Sample Village, Bengaluru Urban, measuring 1,240 sq ft super built-up area, with an undivided share of 420 sq ft in the land." },
+      { p:4, sec:"Possession", text:"The Vendor shall hand over possession within 30 days of the Purchaser paying the full consideration, free from all encumbrances." },
+    ]},
+  { id:"D7", type:"e-Khata extract", docNo:"KH-45-2-SMP", date:"2025-01-20", lang:"English", kind:"record",
+    pages:[
+      { p:1, sec:"Owner", text:"Property ID KH-45-2-SMP. Owner name: Sample Builders LLP. Survey number 45/2, Sample Village. Khata type: A." },
+    ]},
+];
+const EC = [
+  { id:"F1", date:"2014-06-02", nature:"Gift", docNo:"SMP-1-05530-2014", from:"S. Lakshmamma", to:"K. Ravi Kumar" },
+  { id:"F2", date:"2017-08-21", nature:"Sale", docNo:"SMP-1-03312-2017", from:"K. Ravi Kumar", to:"Anitha Rao" },
+  { id:"F3", date:"2019-11-05", nature:"Sale", docNo:"SMP-1-07714-2019", from:"Anitha Rao", to:"Sample Builders LLP" },
+  { id:"F4", date:"2020-02-10", nature:"Mortgage", docNo:"SMP-1-04410-2020", from:"Sample Builders LLP", to:"Sample Bank Ltd" },
+  { id:"F5", date:"2023-07-18", nature:"Release", docNo:"SMP-1-02295-2023", from:"Sample Bank Ltd", to:"Sample Builders LLP" },
+];
+const NAME_VARIANTS = { ramaiah:["ramayya","ramiah"], lakshmamma:["laxmamma","lakshmama","laksmamma"], "ravi":["ravikumar"], anitha:["anita"] };
+
+// ---------------------------------------------------------------- chain + checks (plain code, no LLM)
+const byDocNo = Object.fromEntries(DOCS.map(d => [d.docNo, d]));
+function buildChain(){
+  const links = [];
+  DOCS.filter(d => d.kind === "transfer" && d.date < MATTER.ecFrom).forEach(d =>
+    links.push({ year:d.date.slice(0,4), from:d.from, to:d.to, label:`${d.type}, Doc No. ${d.docNo} · ${d.id} p.${d.pages.map(p=>p.p).join(",")}`, status:"warn", tag:"Root deed, before EC" }));
+  EC.filter(r => r.nature === "Sale" || r.nature === "Gift").forEach(r => {
+    const d = byDocNo[r.docNo];
+    links.push(d
+      ? { year:r.date.slice(0,4), from:r.from, to:r.to, label:`${d.type}, Doc No. ${r.docNo} · ${d.id} · EC ${r.id}`, status:"ok", tag:"EC matched" }
+      : { year:r.date.slice(0,4), from:r.from, to:r.to, label:`EC ${r.id} shows a ${r.nature.toLowerCase()}, Doc No. ${r.docNo}. Deed not in file.`, status:"bad", tag:"Missing link" });
+  });
+  const agr = DOCS.find(d => d.kind === "agreement");
+  if (agr) links.push({ year:agr.date.slice(0,4), from:agr.from, to:agr.to, label:`Agreement to sell, ${agr.date} · ${agr.id}`, status: agr.from === links[links.length-1].to ? "ok" : "bad", tag: agr.from === links[links.length-1].to ? "Seller is current owner" : "Seller mismatch" });
+  return links;
+}
+function buildChecks(){
+  const out = [];
+  const morts = EC.filter(r => r.nature === "Mortgage");
+  morts.forEach(m => {
+    const rel = EC.find(r => r.nature === "Release" && DOCS.some(d => d.kind==="release" && d.docNo===r.docNo && d.pages.some(p => p.text.includes(m.docNo))));
+    out.push({ title:"Mortgage " + m.docNo, state: rel ? "ok" : "bad", tag: rel ? "Released" : "Open", body: rel ? `Created ${m.date} (EC ${m.id}); released ${rel.date} (EC ${rel.id}, D4 p.1).` : `Created ${m.date} (EC ${m.id}); no release found.` });
+  });
+  const agr = DOCS.find(d => d.kind === "agreement");
+  const agrArea = (agr.pages.map(p=>p.text).join(" ").match(/([\d,]+) sq ft super built-up/)||[])[1];
+  const oc = DOCS.find(d => d.kind === "approval");
+  const ocArea = (oc.pages[0].text.match(/built-up area ([\d,]+) sq ft/)||[])[1];
+  out.push({ title:"Flat area", state: agrArea === ocArea ? "ok" : "warn", tag: agrArea === ocArea ? "Match" : "Differs",
+    body:`Agreement: ${agrArea} sq ft super built-up (D6 p.2). OC: ${ocArea} sq ft built-up (D5 p.1). Different measures; advocate to confirm.` });
+  const surveys = new Set(DOCS.flatMap(d => d.pages.map(p => (p.text.match(/Sy\. No\. (\d+\/\d+)/)||p.text.match(/[Ss]urvey number (\d+\/\d+)/)||[])[1]).filter(Boolean)));
+  out.push({ title:"Survey number", state: surveys.size === 1 ? "ok" : "bad", tag: surveys.size === 1 ? "Consistent" : "Conflict", body:`Found in documents: ${[...surveys].join(", ")}.` });
+  const covers = MATTER.ecFrom <= "2013-10-05";
+  out.push({ title:"EC coverage", state: covers ? "ok" : "bad", tag: covers ? "13 years" : "Short", body:`${MATTER.ecFrom} to ${MATTER.ecTo}, fetched ${MATTER.ecFetched}.` });
+  return out;
+}
+
+// ---------------------------------------------------------------- retrieval (hybrid-lite: keyword scoring + exact doc-number and name-variant boosts)
+// Every chunk carries a context header (document, parties, section) so a page that never names a party still matches a question about them.
+const CHUNKS = DOCS.flatMap(d => d.pages.map(p => ({ key:`${d.id}-p${p.p}`, label:`${d.id} ${d.type} (${d.docNo}), p.${p.p}, ${p.sec}`, ctx:`${d.type} ${d.from||""} ${d.to||""} ${p.sec}`, text:p.text, doc:d })));
+const STOP = new Set("the a an of in to and or is was by on for from with this that what who which did does do it its as at be are were has have had any all there their my our me i you your about into under".split(" "));
+const tok = s => s.toLowerCase().replace(/[^a-z0-9\/\-\s]/g," ").split(/\s+/).filter(w => w && !STOP.has(w));
+const DF = {}; CHUNKS.forEach(c => new Set(tok(c.text + " " + c.label + " " + c.ctx)).forEach(w => DF[w] = (DF[w]||0)+1));
+function parseQuery(q){
+  const docNos = q.toUpperCase().match(/SMP-\d-\d{5}-\d{4}/g) || [];
+  let terms = tok(q);
+  const expanded = [];
+  terms.forEach(t => { for (const [canon, vars] of Object.entries(NAME_VARIANTS)) if (t === canon || vars.includes(t)) expanded.push(canon, ...vars); });
+  const years = q.match(/\b(19|20)\d{2}\b/g) || [];
+  return { terms:[...new Set([...terms, ...expanded])], docNos, years };
+}
+function retrieve(q, k = 6){
+  const pq = parseQuery(q);
+  const scored = CHUNKS.map(c => {
+    const words = tok(c.text + " " + c.label + " " + c.ctx);
+    let s = 0;
+    pq.terms.forEach(t => { const tf = words.filter(w => w === t || (t.length > 4 && w.startsWith(t))).length; if (tf) s += (1 + Math.log(tf)) * Math.log(1 + CHUNKS.length / (DF[t] || 1)); });
+    pq.docNos.forEach(n => { if ((c.text + c.label).includes(n)) s += 6; });
+    pq.years.forEach(y => { if ((c.text + c.doc.date).includes(y)) s += 1.5; });
+    return { ...c, score: +s.toFixed(2) };
+  }).filter(c => c.score > 0).sort((a,b) => b.score - a.score).slice(0, k);
+  return { pq, hits: scored };
+}
+
+// ---------------------------------------------------------------- prompt (same rules as the PRD's Section 7)
+const RULES = `You are TitleLens, an assistant for advocates in Bengaluru who prepare legal scrutiny reports on property files for banks. Answer ONLY from the context below: SOURCES (document pages from this matter), FACTS (encumbrance certificate rows) and TITLE CHAIN (built by code from those facts).
+Rules:
+1. Cite every factual sentence with a tag like [1] or [F2] pointing to a SOURCE number or FACTS id. If you cannot cite it, do not say it.
+2. Copy names, dates, document numbers, survey numbers and areas exactly. Never correct, convert or estimate them.
+3. Never add, assume or infer a link in the title chain. If a deed is missing from the file, say so plainly. A recital in a later deed is evidence of what that deed says, not a substitute for the missing deed.
+4. If the context does not answer the question, reply "I couldn't find this in the file" and say which documents you searched.
+5. Never say a title is clear, a deed is genuine, or a bank should lend. That opinion belongs to the advocate. Offer the list of open issues instead.
+6. State "no encumbrance" only together with the exact EC period covered.
+7. When two documents disagree, show both values side by side. Do not decide which is right.
+8. If the answer needs a document the file lacks, end with a one-line requisition the advocate can send to the seller, naming the document number.
+Tone: precise, neutral, plain English. Format: a one-line answer, then at most five short bullets starting with "- ". Use **bold** sparingly. No headings.`;
+function buildPrompt(q, hits){
+  const chain = buildChain().map(l => `${l.year}: ${l.from} -> ${l.to} | ${l.label} | ${l.tag}`).join("\n");
+  const facts = EC.map(r => `[${r.id}] ${r.date} ${r.nature} Doc No. ${r.docNo}: ${r.from} -> ${r.to}`).join("\n");
+  const src = hits.map((h,i) => `[${i+1}] ${h.label}: ${h.text}`).join("\n");
+  return `${RULES}
+
+EC PERIOD: ${MATTER.ecFrom} to ${MATTER.ecTo}, fetched ${MATTER.ecFetched}.
+FACTS:
+${facts}
+
+TITLE CHAIN:
+${chain}
+
+SOURCES:
+${src || "(no matching pages)"}
+
+QUESTION: ${q}`;
+}
+
+// ---------------------------------------------------------------- validator (code check after generation)
+function validate(answer, hits){
+  const ground = (hits.map(h => h.text + " " + h.label).join(" ") + " " + EC.map(r => Object.values(r).join(" ")).join(" ") + " " + JSON.stringify(MATTER)).replace(/\s+/g," ");
+  const flags = [];
+  (answer.match(/SMP-\d-\d{5}-\d{4}/g) || []).forEach(n => { if (!ground.includes(n)) flags.push(`Doc No. ${n} not in sources`); });
+  (answer.match(/[\d,]{3,} sq ft/g) || []).forEach(n => { if (!ground.includes(n)) flags.push(`"${n}" not in sources`); });
+  (answer.match(/Rs\.? ?[\d,]+/g) || []).forEach(n => { const v = n.replace(/Rs\.? ?/,""); if (!ground.includes(v)) flags.push(`Amount ${n} not in sources`); });
+  const cites = answer.match(/\[(F?\d+)\]/g) || [];
+  const refusal = /couldn.t find this in the file|opinion belongs to|yours to give/i.test(answer);
+  if (!cites.length && !refusal) flags.push("No citations in answer");
+  cites.forEach(c => { const id = c.slice(1,-1); if (id.startsWith("F") ? !EC.some(r => r.id === id) : (+id < 1 || +id > hits.length)) flags.push(`Citation ${c} points to nothing`); });
+  return flags;
+}
+
+// ---------------------------------------------------------------- rendering
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function renderLeft(){
+  $("matterName").textContent = MATTER.name;
+  $("chain").innerHTML = buildChain().map((l,i,arr) => {
+    const conn = i ? `<div class="conn ${l.status==="bad"||arr[i-1].status==="bad"?"gap":""}"></div>` : "";
+    return conn + `<div class="link ${l.status==="bad"?"gap":""}"><div class="yr">${l.year}</div><div class="who"><b>${esc(l.from)} → ${esc(l.to)}</b><span>${esc(l.label)}</span></div><span class="tag ${l.status}">${esc(l.tag)}</span></div>`;
+  }).join("");
+  $("checks").innerHTML = buildChecks().map(c => `<div class="chk"><div class="h">${esc(c.title)}<span class="tag ${c.state}">${esc(c.tag)}</span></div>${esc(c.body)}</div>`).join("");
+  $("ecPeriod").textContent = `Period ${MATTER.ecFrom} to ${MATTER.ecTo} · fetched ${MATTER.ecFetched}`;
+  $("ecRows").innerHTML = EC.map(r => { const d = byDocNo[r.docNo]; return `<tr><td class="mono">${r.id}</td><td class="mono">${r.date}</td><td>${r.nature}</td><td class="mono">${r.docNo}</td><td>${esc(r.from)} → ${esc(r.to)}</td><td>${d ? `<span class="tag ok">${d.id}</span>` : (r.nature==="Mortgage" ? `<span class="tag warn">Released, see F5</span>` : `<span class="tag bad">Missing</span>`)}</td></tr>`; }).join("");
+  $("docs").innerHTML = DOCS.map(d => `<details class="doc"><summary>${d.id} · ${esc(d.type)}<span>${esc(d.docNo)} · ${d.date} · ${esc(d.lang)}</span></summary>${d.pages.map(p => `<div class="page"><div class="pl">p.${p.p} · ${esc(p.sec)}</div>${esc(p.text)}</div>`).join("")}</details>`).join("");
+}
+function fmtAnswer(text, hits){
+  const lines = esc(text).split("\n");
+  let html = "", inList = false;
+  lines.forEach(line => {
+    const t = line.trim(); if (!t) return;
+    const li = /^[-*•]\s+/.test(t);
+    if (li && !inList){ html += "<ul>"; inList = true; }
+    if (!li && inList){ html += "</ul>"; inList = false; }
+    const body = (li ? t.replace(/^[-*•]\s+/,"") : t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+    html += li ? `<li>${body}</li>` : `<p>${body}</p>`;
+  });
+  if (inList) html += "</ul>";
+  return html.replace(/\[(F?\d+)\]/g, (m, id) => {
+    const src = id.startsWith("F") ? EC.find(r => r.id === id) : hits[+id - 1];
+    const title = src ? (id.startsWith("F") ? `EC ${src.id}: ${src.date} ${src.nature} ${src.docNo}` : src.label) : "unknown source";
+    return `<span class="cite" title="${esc(title)}">${id}</span>`;
+  });
+}
+
+// ---------------------------------------------------------------- generation
+let samplePromise = null, ctl = null, busy = false;
+async function getSampler(){
+  if (BACKEND === "gemini") return async (prompt, opts) => {
+    const r = await fetch("/api/ask", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ prompt }), signal: opts.signal });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw { code: j.code || "upstream_error", message: j.error || ("HTTP " + r.status) };
+    opts.onText && opts.onText({ text: j.text, delta: j.text });
+    return { text: j.text };
+  };
+  if (!window.claude || !window.claude.use) return null;
+  if (!samplePromise) samplePromise = window.claude.use("sample").catch(() => null);
+  return samplePromise;
+}
+const COPY = { not_granted:"Live answers are off because Claude access was declined for this page. Retrieval and checks still ran.", sampling_disabled:"Claude isn't available on this account, so only retrieval ran.", rate_limited:"Too many questions at once. Wait a moment and ask again.", session_expired:"Sign in to claude.ai again to get live answers.", refused:"That question couldn't be answered. Try rephrasing it.", prompt_too_large:"The question pulled in too much text. Ask about one document.", upstream_error:"The answer was interrupted. Ask again.", no_key:"The server has no Gemini API key. Add GEMINI_API_KEY in your AI Studio app settings or hosting environment.", model_not_found:"That Gemini model name was not found. Set GEMINI_MODEL to a model your key can use." };
+
+async function ask(q){
+  q = q.trim(); if (!q || busy) return;
+  busy = true; $("askBtn").disabled = true;
+  const { pq, hits } = retrieve(q);
+  const card = document.createElement("div");
+  card.innerHTML = `<div class="q">${esc(q)}</div>`;
+  const ans = document.createElement("div"); ans.className = "ans";
+  ans.innerHTML = `<div class="body"><p class="status">Thinking…</p></div><div class="ctl"></div><div class="v"></div>${traceHTML(pq, hits, buildPrompt(q, hits))}`;
+  card.appendChild(ans); $("thread").prepend(card);
+  const body = ans.querySelector(".body"), vbox = ans.querySelector(".v");
+  const sample = await getSampler();
+  if (!sample){
+    body.innerHTML = `<div class="offline">Live answers need this page opened inside claude.ai (or the AI Studio version). Retrieval ran: see the sources it found below.</div>`;
+    busy = false; $("askBtn").disabled = false; return;
+  }
+  ctl = new AbortController();
+  const stop = document.createElement("button"); stop.className = "stop"; stop.type = "button"; stop.textContent = "Stop";
+  stop.onclick = () => ctl && ctl.abort(); ans.querySelector(".ctl").appendChild(stop);
+  try {
+    const { text } = await sample(buildPrompt(q, hits), { signal: ctl.signal, cache:false, modelTier:"quick", onText: ({ text }) => { body.innerHTML = fmtAnswer(text, hits); } });
+    body.innerHTML = fmtAnswer(text, hits);
+    const flags = validate(text, hits);
+    vbox.innerHTML = flags.length ? `<div class="val fail">Validator flagged: ${esc(flags.join("; "))}. Check these against the pages before using.</div>` : `<div class="val pass">Validator passed: every document number, area and amount appears in a cited source.</div>`;
+  } catch(e){
+    if (e && e.text) body.innerHTML = fmtAnswer(e.text, hits); else body.innerHTML = "";
+    if (!e || e.code !== "cancelled") body.insertAdjacentHTML("beforeend", `<div class="offline">${esc(COPY[e && e.code] || COPY.upstream_error)}</div>`);
+  } finally {
+    stop.remove(); busy = false; $("askBtn").disabled = false; ctl = null;
+  }
+}
+function traceHTML(pq, hits, prompt){
+  const parse = `terms: ${pq.terms.join(", ") || "none"}${pq.docNos.length ? " · doc nos: " + pq.docNos.join(", ") : ""}${pq.years.length ? " · years: " + pq.years.join(", ") : ""}`;
+  const srcs = hits.length ? hits.map((h,i) => `<div class="src"><b>[${i+1}]</b> ${esc(h.label)} <span class="score">score ${h.score}</span><br>${esc(h.text)}</div>`).join("") : `<p>No page matched. The model is told to say it couldn't find this.</p>`;
+  return `<details class="trace"><summary>Retrieval trace: ${hits.length} source${hits.length===1?"":"s"}, ${EC.length} EC facts</summary><pre>${esc(parse)}</pre>${srcs}<details><summary>Full prompt sent (${prompt.length.toLocaleString()} characters)</summary><pre>${esc(prompt)}</pre></details></details>`;
+}
+
+const EXAMPLES = ["Does the agreement to sell match the title?", "Who sold the property to Anitha Rao?", "Was the 2020 mortgage released?", "What are the boundaries of the land?", "Is the title clear?", "What is the market value of the flat?"];
+$("chips").innerHTML = EXAMPLES.map(e => `<button class="chip" type="button">${esc(e)}</button>`).join("");
+$("chips").addEventListener("click", ev => { const b = ev.target.closest(".chip"); if (b){ $("askInput").value = b.textContent; ask(b.textContent); } });
+$("askForm").addEventListener("submit", ev => { ev.preventDefault(); ask($("askInput").value); });
+if (BACKEND === "gemini") $("engineNote").textContent = "Answers come only from this file, cited to the page. Model: Gemini via your AI Studio app.";
+renderLeft();
+</script>
+
+</body>
+</html>

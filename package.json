@@ -1,0 +1,9 @@
+{
+  "name": "titlelens",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TitleLens prototype: cited title-chain checks on a sample Bengaluru property file, answered by Gemini.",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
